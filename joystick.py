@@ -28,28 +28,39 @@
 
 from microbit import *
 
-# Used by excel to home shark graphic
-DEFAULT_RETURN_STRING = ",0,-10.5,0" 
+# Appended to direction information, this constant is used by excel
+# to return the shark to "home" position
+DEFAULT_RETURN_SUFFIX = ",0,-10.5,0" 
 
-# Working variable 
-current_return_string = DEFAULT_RETURN_STRING  
+# Working variable, which will be updated periodically with new
+# position and time information
+current_return_suffix = DEFAULT_RETURN_SUFFIX  
 
-# Variables used in dealing with serial in data 
-parsed_data = "" 
-last_data = ""
+# Variables used in dealing with serial in data, created globally
+# to reduce instantiation load
+serial_in_data = "" 
+last_serial_in_data = ""
 comma_count = 0
 
-# How often we poll joystick
-last_read = running_time() 
-SENSOR_INTERVAL = 100
+# Maximum interval in millisecond to poll the joystick state
+JOYSTICK_READ_INTERVAL = 100
 
-#  Directional Variables
+# Used track intervals of joystick reads
+last_joystick_read_time = running_time() 
+
+# Constant used to indicate when to reboot the micro:bit
+# Rebooting the micro:bit after a long duration helps flush 
+# serial buffers and reduces frozen interactions... It will also 
+# teleport the shark to home position once every 45 minutes.
+RESET_TIME = running_time() + (1000 * 45) * 60
+
+# Variables used to track joystick direction, these values
+# are sent to excel via serial 
 pitch = 0
 yaw = 0
 roll = 0
 
-
-def processSensors():
+def read_joystick():
 
 	#   This function read check the switches on the joystick
 	#   and assigns either a 1 for counter clockwire turn, a
@@ -57,82 +68,105 @@ def processSensors():
 
 	global roll, pitch, yaw
 
-	roll_ccw = pin1.read_digital()
-	roll_cw = pin0.read_digital()
+	roll_counterclockwise = pin1.read_digital()
+	roll_clockwise = pin0.read_digital()
 
-	pitch_ccw = pin3.read_digital()
-	pitch_cw = pin2.read_digital()
+	pitch_counterclockwise = pin3.read_digital()
+	pitch_clockwise = pin2.read_digital()
 
-	yaw_ccw = pin7.read_digital()
-	yaw_cw = pin6.read_digital()
+	yaw_counterclockwise = pin7.read_digital()
+	yaw_clockwise = pin6.read_digital()
 
-	if roll_ccw == 1:
+	if roll_counterclockwise == 1:
 		roll = 1
-	elif roll_cw == 1:
+	elif roll_clockwise == 1:
 		roll = -1
 	else:
 		roll = 0
 
-	if pitch_ccw == 1:
+	if pitch_counterclockwise == 1:
 		pitch = 1
-	elif pitch_cw == 1:
+	elif pitch_clockwise == 1:
 		pitch = -1
 	else:
 		pitch = 0
 
-	if yaw_ccw == 1:
+	if yaw_counterclockwise == 1:
 		yaw = 1
-	elif yaw_cw == 1:
+	elif yaw_clockwise == 1:
 		yaw = -1
 	else:
 		yaw = 0
-
-def getData():
-	global current_return_string, parsed_data, last_data
+def process_serial_input():
+	# process_serial_input() is complicated because the shark 
+	# spreadsheet produces messages faster than we can handle 
+	# 
+	# We receive a high number of malformed lines from serial, which 
+	# are eliminated by simple heuristics (comma count and end 
+	# character check).
+	#
+	# We also avoid unnecessary processing by comparing current message 
+	# to last parsed message.
+	#
+	# Additionally, to mitigate processing impact of this we avoid any 
+	# parsing of values and simply inspect last few characters to 
+	# determine if game state reset is required.
+	global current_return_suffix, serial_in_data, last_serial_in_data
 	
-	while uart.any() is True: # and parsed_data.count('\n') == 0: 
-		parsed_data += str(uart.read(150), "utf-8", "ignore")
+	while uart.any() is True:  # read entire buffer
+		serial_in_data += str(uart.read(150), "utf-8", "ignore")
 		sleep(10)
 
-	# make sure we have a well formed serial read.
-	comma_count = parsed_data.count(",") 
-
-	if ( comma_count != 7):
-		parsed_data = ""
+	# skip if not well formed input
+	if (len(serial_in_data) <= 0 or serial_in_data.count(",") != 7 or not serial_in_data.endswith("\n")): 
+		serial_in_data = ""
 		return  # skip this method if not formed well
 
+	# strip off extra stuff
+	serial_in_data = serial_in_data.rstrip(',\n\r')
+	serial_in_data = serial_in_data.rstrip() # TODO necessary?
+	
+	# if there's no change, skip the rest of this method
+	if last_serial_in_data == serial_in_data: 
+		serial_in_data = ""
+		return
 
-	if len(parsed_data) > 0 and parsed_data.endswith("\n"):
-		parsed_data = parsed_data.rstrip(',\n\r')
-		parsed_data = parsed_data.rstrip()
-		
-		# if there's no change, skip the rest of this method
-		if last_data == parsed_data: 
-			parsed_data = ""
-			return
+	last_serial_in_data = serial_in_data
 
-		last_data = parsed_data
+	if serial_in_data.endswith(",1"):    
+		# on reset flag, use default return suffix 
+		current_return_suffix = DEFAULT_RETURN_SUFFIX 
+	elif serial_in_data.endswith(",0"):  
+		# w/ no reset flag update return suffix received string
+		current_return_suffix = serial_in_data 
 
-		if parsed_data.endswith(",1"):  # reset to home value 
-			current_return_string = DEFAULT_RETURN_STRING 
-		elif parsed_data.endswith(",0"):
-			current_return_string = parsed_data 
+	serial_in_data = ""
 
-		parsed_data = ""
-
-
-uart.init(9600)
-display.off()
-
-while True:
-	if (running_time() - last_read >= SENSOR_INTERVAL):
-		last_read = running_time() 
-		processSensors()
-
-	getData()
-
+def output_to_serial():
+	# uart is the micropython serial object
 	uart.write("{},{},{},".format(roll, pitch, yaw)) 
-	uart.write(current_return_string)
+	uart.write(current_return_suffix)
 	uart.write("\n")
 
-	sleep(10)
+uart.init(9600)  #initialize serial connection
+
+display.show(Image.ASLEEP) # display friendly face at start or restart
+sleep(1000) 
+
+display.off() # turn off display so we can access more pins for io
+
+# Main program loop. Will repeat forever (because True is always True)
+while True:
+	# Only read joystick after read interval time has elapsed
+	if ( (running_time() - last_joystick_read_time) >= JOYSTICK_READ_INTERVAL):
+		last_joystick_read_time = running_time() 
+		read_joystick()
+
+		# Reseting board if it has been running a long time 
+		# helps prevent serial issues 
+		if (running_time() > RESET_TIME ):
+			reset()
+
+	process_serial_input()  # read from serial and do things
+	output_to_serial()      # write data to serial for excel to use
+	sleep(10)               # reduce buffer overrun to excel
