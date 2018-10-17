@@ -2,7 +2,7 @@
 #  For use with the How do sharks swim lesson plan from Microsoft
 #  Education Workshop at http://aka.ms/hackingSTEM
 # 
-#  Uses pins 0,1,2,3,6,7
+#  Uses pins 0,1,2,3,6,7 for direction switches:
 #   Roll Counter Clockwise = pin1
 #   Roll Clockwise = pin0
 #   Pitch Counter Clockwise = pin3
@@ -138,7 +138,7 @@ def process_serial_input():
 		# foo = serial_in_data.replace('\n','').rstrip(' ,\n\r')
 		return  # skip this method if not formed well
 
-	# strip off extra stuff
+	# strip off extra whitespace and commas
 	serial_in_data = serial_in_data.replace('\n','').rstrip(' ,\n\r')
 	
 	# if there's no change, skip the rest of this method
@@ -159,6 +159,9 @@ def output_to_serial():
 	uart.write(current_return_prefix)
 	uart.write(current_return_suffix)
 	uart.write("\n")
+
+#
+# Configs
 
 uart.init(9600)  #initialize serial connection
 
