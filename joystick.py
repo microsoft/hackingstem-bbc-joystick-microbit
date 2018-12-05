@@ -134,8 +134,14 @@ def process_serial_input():
 		sleep(10)
 
 	# skip if not well formed input
+	if (len(serial_in_data) <= 0):
+		return 
+
 	if (len(serial_in_data) <= 0 or serial_in_data.count(",") != 7 or not serial_in_data.endswith("\n")): 
 		# foo = serial_in_data.replace('\n','').rstrip(' ,\n\r')
+		uart.write("FOUND BAD DATA: ")
+		uart.write(serial_in_data)
+		uart.write("\n")
 		return  # skip this method if not formed well
 
 	# strip off extra whitespace and commas
@@ -146,12 +152,8 @@ def process_serial_input():
 
 	last_serial_in_data = serial_in_data
 
-	if serial_in_data.endswith(",1"):    
-		# on reset flag, use default return suffix 
-		current_return_suffix = DEFAULT_RETURN_SUFFIX 
-	elif serial_in_data.endswith(",0"):  
-		# w/ no reset flag update return suffix received string
-		current_return_suffix = serial_in_data 
+	current_return_suffix = serial_in_data 
+
 
 
 def output_to_serial():
