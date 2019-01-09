@@ -84,14 +84,14 @@ def read_joystick():
 	yaw = 0
 	roll = 0
 
-	roll_counterclockwise = pin1.read_digital()
-	roll_clockwise = pin0.read_digital()
+	roll_counterclockwise = pin0.read_digital()
+	roll_clockwise = pin1.read_digital()
 
-	pitch_counterclockwise = pin3.read_digital()
-	pitch_clockwise = pin2.read_digital()
+	pitch_counterclockwise = pin2.read_digital()
+	pitch_clockwise = pin3.read_digital()
 
-	yaw_counterclockwise = pin7.read_digital()
-	yaw_clockwise = pin6.read_digital()
+	yaw_counterclockwise = pin6.read_digital()
+	yaw_clockwise = pin7.read_digital()
 
 	if roll_counterclockwise == 1:
 		roll = 1
