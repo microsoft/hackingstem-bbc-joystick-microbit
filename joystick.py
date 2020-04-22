@@ -1,7 +1,7 @@
 # ------------__ Hacking STEM – joystick.py – micro:bit __-----------
 #  For use with the How do sharks swim lesson plan from Microsoft
 #  Education Workshop at http://aka.ms/hackingSTEM
-# 
+#
 #  Uses pins 0,1,2,3,6,7 for direction switches:
 #   Roll Counter Clockwise = pin1
 #   Roll Clockwise = pin0
@@ -19,7 +19,7 @@
 #  requests are welcome! For source code and bug reports see:
 #  http://github.com/[TODO github path to Hacking STEM]
 #
-#  Copyright 2018, Adi Azulay w/ contributions by Jeremy Franklin-Ross
+#  Copyright 2018, Adi Azulay, Jeremy Franklin-Ross, David Myka
 #  Microsoft EDU Workshop - HackingSTEM
 #  MIT License terms detailed in LICENSE.txt
 # ===---------------------------------------------------------------===
@@ -35,11 +35,11 @@ last_return_prefix = ""
 
 # Appended to direction information, this constant is used by excel
 # to return the shark to "home" position
-DEFAULT_RETURN_SUFFIX = ",0,-10.5,0" 
+DEFAULT_RETURN_SUFFIX = ",0,-10.5,0"
 
 # Working variable, which will be updated periodically with new
 # position and time information
-current_return_suffix = DEFAULT_RETURN_SUFFIX  
+current_return_suffix = DEFAULT_RETURN_SUFFIX
 
 # Previously sent return suffix
 last_return_suffix = ""
@@ -47,7 +47,7 @@ last_return_suffix = ""
 
 # Variables used in dealing with serial in data, created globally
 # to reduce instantiation load
-serial_in_data = "" 
+serial_in_data = ""
 last_serial_in_data = ""
 comma_count = 0
 
@@ -56,18 +56,18 @@ comma_count = 0
 SERIAL_WRITE_INTERVAL = 120
 
 # Used track intervals of serial writes
-last_serial_write_time = running_time() 
+last_serial_write_time = running_time()
 
 
 # Maximum interval in millisecond to poll the joystick state
 JOYSTICK_READ_INTERVAL = int(SERIAL_WRITE_INTERVAL/3)
 
 # Used track intervals of joystick reads
-last_joystick_read_time = running_time() 
+last_joystick_read_time = running_time()
 
 # Constant used to indicate when to reboot the micro:bit
-# Rebooting the micro:bit after a long duration helps flush 
-# serial buffers and reduces frozen interactions... It will also 
+# Rebooting the micro:bit after a long duration helps flush
+# serial buffers and reduces frozen interactions... It will also
 # teleport the shark to home position once every 45 minutes.
 RESET_TIME = running_time() + (1000 * 45) * 60
 
@@ -79,7 +79,7 @@ def read_joystick():
 	global current_return_prefix
 
 	# Variables used to track joystick direction, these values
-	# are formatted into a string and sent to excel via serial 
+	# are formatted into a string and sent to excel via serial
 	pitch = 0
 	yaw = 0
 	roll = 0
@@ -111,18 +111,18 @@ def read_joystick():
 	current_return_prefix = "{},{},{},".format(roll, pitch, yaw)
 
 def process_serial_input():
-	# process_serial_input() is complicated in part because the 
-	# spreadsheet produces messages faster than we can handle  
+	# process_serial_input() is complicated in part because the
+	# spreadsheet produces messages faster than we can handle
 	#
-	# We receive a high number of malformed lines from serial, which 
-	# are eliminated by simple heuristics (comma count and end 
+	# We receive a high number of malformed lines from serial, which
+	# are eliminated by simple heuristics (comma count and end
 	# character check).
 	#
-	# We also avoid unnecessary processing by comparing current message 
+	# We also avoid unnecessary processing by comparing current message
 	# to last parsed message.
 	#
-	# Additionally, to mitigate processing impact of this we avoid any 
-	# parsing of values and simply inspect last few characters to 
+	# Additionally, to mitigate processing impact of this we avoid any
+	# parsing of values and simply inspect last few characters to
 	# determine if game state reset is required.
 
 	global current_return_suffix, serial_in_data, last_serial_in_data
@@ -135,13 +135,9 @@ def process_serial_input():
 
 	# skip if not well formed input
 	if (len(serial_in_data) <= 0):
-		return 
+		return
 
-	if (len(serial_in_data) <= 0 or serial_in_data.count(",") != 7 or not serial_in_data.endswith("\n")): 
-		# foo = serial_in_data.replace('\n','').rstrip(' ,\n\r')
-		uart.write("FOUND BAD DATA: ")
-		uart.write(serial_in_data)
-		uart.write("\n")
+	if (len(serial_in_data) <= 0 or serial_in_data.count(",") != 7 or not serial_in_data.endswith("\n")):
 		return  # skip this method if not formed well
 
 	# strip off extra whitespace and commas
@@ -152,15 +148,13 @@ def process_serial_input():
 
 	last_serial_in_data = serial_in_data
 
-	current_return_suffix = serial_in_data 
+	current_return_suffix = serial_in_data
 
 
 
 def output_to_serial():
 	# uart is the micropython serial object
-	uart.write(current_return_prefix)
-	uart.write(current_return_suffix)
-	uart.write("\n")
+	uart.write(current_return_prefix + current_return_suffix + "\n")
 
 #
 # Configs
@@ -168,7 +162,7 @@ def output_to_serial():
 uart.init(9600)  #initialize serial connection
 
 display.show(Image.ASLEEP) # display friendly face at start or restart
-sleep(1000) 
+sleep(1000)
 
 display.off() # turn off display so we can access more pins for io
 
@@ -176,22 +170,22 @@ display.off() # turn off display so we can access more pins for io
 while True:
 	# Only read joystick after read interval time has elapsed
 	if ((running_time() - last_joystick_read_time) >= JOYSTICK_READ_INTERVAL):
-		last_joystick_read_time = running_time() 
+		last_joystick_read_time = running_time()
 		read_joystick()
 
 	process_serial_input()  # read from serial and do things
 
 	# if there's a change, send update immediately otherwise,
 	# maintain a steady pulse at SERIAL_WRITE_INTERVAL
-	if ( (last_return_prefix != current_return_prefix) 
-	or (last_return_suffix != current_return_suffix) 
+	if ( (last_return_prefix != current_return_prefix)
+	or (last_return_suffix != current_return_suffix)
 	or (running_time() - last_serial_write_time) >= SERIAL_WRITE_INTERVAL):
-		last_serial_write_time = running_time() 
+		last_serial_write_time = running_time()
 		last_return_prefix = current_return_prefix
 		last_return_suffix = current_return_suffix
 		output_to_serial()      # write data to serial for excel to use
 
-		# Reseting board if it has been running a long time 
-		# helps prevent serial issues 
+		# Reseting board if it has been running a long time
+		# helps prevent serial issues
 		if (running_time() > RESET_TIME ):
 			reset()
