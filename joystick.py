@@ -1,6 +1,7 @@
 # ------------__ Hacking STEM – joystick.py – micro:bit __-----------
 #  For use with the How do sharks swim lesson plan from Microsoft
-#  Education Workshop at http://aka.ms/hackingSTEM
+#  Education Workshop at https://aka.ms/shark-lesson
+#  http://aka.ms/hackingSTEM
 #
 #  Uses pins 0,1,2,3,6,7 for direction switches:
 #   Roll Counter Clockwise = pin1
@@ -17,7 +18,7 @@
 #
 #  Comments, contributions, suggestions, bug reports, and feature
 #  requests are welcome! For source code and bug reports see:
-#  http://github.com/[TODO github path to Hacking STEM]
+#  https://github.com/microsoft/hackingstem-bbc-joystick-microbit
 #
 #  Copyright 2018, Adi Azulay, Jeremy Franklin-Ross, David Myka
 #  Microsoft EDU Workshop - HackingSTEM
